@@ -1,0 +1,12 @@
+#!/bin/bash
+
+function errecho () {
+	echo "$@" 1>&2
+}
+
+trap "echo $(date +"%T")  ricevuto segnale SIGUSR1" USR1
+trap "errecho $(date +"%T") ricevuto segnale SIGUSR2" USR2
+
+while true; do
+	sleep 0.1
+done

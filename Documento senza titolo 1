@@ -1,0 +1,61 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+#include <string.h>
+
+static atomic_t timeout = 0;
+
+void gestore(int signum){
+	if(write(1, "tempo scaduto\n", 10) == -1){
+		perror("write");
+		exit(-1);
+	}
+	timeout++;
+}
+
+int main(int argc, char* argv[]){
+	int n, sec; // numero domande e timeout in secondi
+	int i;
+	int x, y, result; // numeri usati per le operazioni
+	int giuste = 0; // contatore risposte giuste
+	struct sigaction act;
+	
+	if(argc == 3){
+		n = atoi(argv[1]);
+		sec = atoi(argv[2]);
+	}else {
+		fprintf(stderr, "pochi argomenti\n");
+		return 1;
+	}
+	
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = gestore;
+	if(sigaction(SIGALRM, &act, NULL) == -1){
+		perror("sigaction");
+		exit(-1);
+	}
+	
+	for(i = 0; i < n; i++){
+		x = (i + sec*n) % 9;
+		y = (sec + n*i) % 9;
+		fprintf(1,"%d*%d = ?\n", x, y);
+		// parte il timer...	
+		alarm(sec);
+		// legge la risposta
+		if(read(0, &result, sizeof(int)) == -1){
+			perror("read");
+			exit(-1);
+		}
+		// se il risultato arriva entro il timeout stampa a video se il risultato è corretto o no
+		if(result == x*y){
+			printf("ok\n");
+			giuste++;
+		} else {
+			printf("no\n");
+		}
+	}	
+	
+	printf("il timeout è scaduto %d volte\nil numero di risposte esatte è %d\n", timeout, giuste);	
+	return 0;
+}

@@ -1,0 +1,4 @@
+17:04:13 ricevuto segnale SIGUSR2
+17:04:13 ricevuto segnale SIGUSR2
+17:04:13 ricevuto segnale SIGUSR2
+17:04:13 ricevuto segnale SIGUSR2

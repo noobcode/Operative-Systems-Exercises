@@ -1,0 +1,91 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/un.h> // ind AF_UNIX
+#define SOCKNAME "./mysock_select"
+#define N 100
+
+static void run_server(struct sockaddr* psa){
+	int fd_sk; // socket di connessione
+	int fd_c; // socket di I/O con un client
+	int fd_num = 0; // max fd attivo
+	int fd; // indice per verificare risultati select
+	
+	char buff[N];
+	fd_set set; // l'insieme dei file descriptor attivi
+	fd_set rdset; // insieme fd attesi in lettura
+	int nread; // numero caratteri letti
+	
+	fd_sk = socket(AF_UNIX, SOCK_STREAM, 0);
+	bind(fd_sk, (struct sockaddr*)psa, sizeof(*psa));
+	listen(fd_sk, SOMAXCONN);
+	
+	// in fd_num mantengo il massimo indice di descrittore attivo
+	if(fd_sk > fd_num)	fd_num = fd_sk;
+	FD_ZERO(&set);	// azzera la maschera set
+	FD_SET(fd_sk, &set); // nella maschera set mette a 1 il bit corrispondente a fd_sk 
+	
+	while(1){
+		rdset = set; // preparo maschera per select
+		if( select(fd_num+1, &rdset, NULL, NULL, NULL) == -1){
+			// getione errore
+		}else{
+			for(fd = 0; fd <= fd_num; fd++){
+				if(FD_ISSET(fd, &rdset)){
+					if(fd == fd_sk){
+						// sock connect pronto
+						fd_c = accept(fd_sk, NULL, 0);
+						FD_SET(fd_c, &set); // nella mask set mette a 1 il bit del fd_c
+						if(fd_c > fd_num) fd_num = fd_c;
+					}else{
+						// sock I/O pronto
+						nread = read(fd, buff, N);
+						if(nread == 0){
+							// EOF client finito
+							FD_CLR(fd, &set);
+							fd_num = aggiorna(&set);
+							close(fd);
+						}else{
+							printf("server got: %s\n", buff);
+							write(fd, "bye!", 5);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+static void run_client(struct sockaddr* psa){
+	if(fork() == 0){
+		// figlio, client
+		int fd_skt;
+		char buf[N];
+		fd_skt = socket(AF_UNIX, SOCK_STREAM, 0);	
+		while(connect(fd_skt, (struct sockaddr*)psa, sizeof(*psa)) == -1){
+			if(errno == ENOENT) sleep(1);
+			else	exit(EXIT_FAILURE);
+		}
+		write(fd_skt, "hallo!", 7);
+		read(fd_skt, buf, N);
+		printf("client got: %s\n", buf);
+		close(fd_skt);
+		exit(EXIT_SUCCESS);
+	}
+}
+	
+int main(){
+	int i;
+	struct sockaddr sa; // ind AF_UNIX
+	strcpy(sa.sun_path, SOCKNAME);
+	sa.sun_family = AF_UNIX;
+	for(i = 0; i < 4; i++){
+		run_client(&sa);
+	}
+	run_server(&sa);
+	return 0;
+}

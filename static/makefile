@@ -1,0 +1,28 @@
+CC = gcc
+AR = ar
+CFLAGS = -Wall -g -c
+ARFLAGS = rvs
+INCLUDES = -I.
+LDFLAGS = -L.
+
+.PHONY: cleanall run
+
+binarytree: binarytree.o libtree.a
+	$(CC) $(INCLUDES) $(LDFLAGS) -ltree $< -o $@
+
+libtree.a: libtree.o
+	$(AR) $(ARFLAGS) $@ $^
+
+binarytree.o: binarytree.c libtree.h
+	$(CC) $(CFLAGS) $< -o $@
+
+libtree.o: libtree.c libtree.h
+	$(CC) $(CFLAGS) $< -o $@
+	 	 
+cleanall:
+	@echo "removing garbage"
+	-rm -f *.o core *~ *.a
+
+run:
+	@echo "eseguo il programma"
+	./binarytree 

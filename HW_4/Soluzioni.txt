@@ -1,0 +1,22 @@
+1. 
+  cat << FINE > filediinput.txt
+  .....
+  .....
+  FINE
+
+  cat filediinput.txt | grep "riga" | LC_ALL="C" sort
+
+2. 
+ cat filediinput.txt | tr ' ' '*'
+
+3. 
+ cat /etc/passwd | cut -d: -f1 | LC_ALL="C" sort
+
+4. 
+ find . -type f -mmin -30
+
+5. 
+ vedere script cerca.sh
+
+6. 
+ vedere script menu.sh

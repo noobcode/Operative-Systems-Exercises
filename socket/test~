@@ -1,0 +1,17 @@
+#!/bin/bash
+
+OUT="/dev/null"
+
+./server_string &
+./client_string "ciao!" "Hello" "Hi"    >&      $OUT & 
+./client_string "prova1" "prova2"       2>&1 >> $OUT & 
+./client_string "altra prova"           2>&1 >> $OUT & 
+./client_string "penultimo MESSAGGIO!"  2>&1 >> $OUT & 
+./client_string "Arrivederci" "goodbye" "au Revoir" "hasta luego"  2>&1 >> $OUT
+./client_string "altra prova"           2>&1 >> $OUT & 
+./client_string "altra prova"           2>&1 >> $OUT & 
+./client_string "altra prova"           2>&1 >> $OUT & 
+./client_string "Messaggio lungo aaaaaaaaaaa" "bbbb  bbbbbbbbbbbbb     bbbbbbbbbbbbbbbbbbbbbbb bbbbbbbbbbbbbbbbbb" "au Revoir" "hasta luego"  " cccc ccccc " " dddddd d d d d d d ddddddd "  "eeeee eeee eeee eeeeeeeeeee e e e e" 2>&1 >> $OUT
+./client_string "altra prova"           2>&1 >> $OUT & 
+./client_string "altra prova"           2>&1 >> $OUT & 
+./client_string "altra prova"           2>&1 >> $OUT & 

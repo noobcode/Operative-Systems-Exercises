@@ -1,0 +1,181 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
+
+#define N 10 // numero thread consumatori
+#define M 12 // numero thread produttori
+typedef struct coda{
+	int data;
+	struct coda* next;
+}coda_t;
+
+pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t full = PTHREAD_COND_INITIALIZER; // per segnalare la coda con almeno un messaggio
+volatile sig_atomic_t len = 0; // lunghezza coda
+coda_t* head = NULL;
+
+void Pthread_mutex_lock(pthread_mutex_t* mtx){
+	int err;
+	if( (err = pthread_mutex_lock(mtx)) != 0){
+		errno = err;
+		perror("lock");
+		pthread_exit((void *)errno);
+	}
+}
+
+void Pthread_mutex_unlock(pthread_mutex_t* mtx){
+	int err;
+	if( (err = pthread_mutex_unlock(mtx)) != 0){
+		errno = err;
+		perror("unlock");
+		pthread_exit((void*)errno);
+	}
+}
+
+void* handler(void* arg){
+	
+
+}
+
+coda_t* produci(int k){
+	coda_t* new = malloc(sizeof(coda_t));
+	if(!new){
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+	new->data = k;
+	new->next = NULL;
+	return new;
+}
+
+void inserisci(coda_t* item){
+	if(head == NULL){
+		head = item;
+	}else{
+		coda_t* curr = head;
+		while(curr->next)
+			curr = curr->next;
+		curr->next = item;
+	}
+}
+
+coda_t* estrai(){
+	coda_t* item = head;
+	head = head->next;
+	return item;
+}
+
+void* produttore(void* arg){
+	coda_t* item;
+	int i;
+	int n = (int)arg;
+	for(i = n; i >= 0; i--){
+		item = produci(i-1);
+		Pthread_mutex_lock(&mtx);
+		inserisci(item);
+		pthread_cond_signal(&full);
+		Pthread_mutex_unlock(&mtx);
+	}
+}
+
+void* consumatore(void* arg){
+	int msg;
+	int i = (int)arg;
+	coda_t* item;
+	while(1){
+		Pthread_mutex_lock(&mtx);
+		while(head == NULL){
+			pthread_cond_wait(&full, &mtx);
+		}
+		item = estrai();
+		msg = item->data;
+		Pthread_mutex_unlock(&mtx);
+		printf("consumatore %d, ricevuto %d\n", i, msg);
+		if(msg == -1){
+			pthread_exit((void*)0);
+		}
+		free(item);
+	}
+}
+
+int main(int argc, char* argv[]){
+	int nmsg, i, err;
+	pthread_t* prod;
+	pthread_t* cons;
+	pthread_t tid;
+	sigset_t set;
+	int k = 1;
+	
+	if(argc == 2) 
+		k = atoi(argv[1]);
+	
+	sigempyset(&set);
+	sigaddset(&set, SIGUSR1);
+	if(pthread_sigmask(SIG_BLOCK, &set, NULL) != 0){
+		fprintf("errore settaggio maschera\n");
+		return EXIT_FAILURE;
+	}
+	
+	prod = malloc(M * sizeof(pthread_t));	
+	cons = malloc(N * sizeof(pthread_t));
+	if(!prod || !cons){
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+	
+	if(k % M == 0){
+		nmsg = k / M;  
+	}else{
+		nmsg = 48;
+	}
+	
+	if((err = pthread_create(&tid, NULL, handler, (void*)NULL) ) != 0 ){
+		fprintf(stderr, "pthread_create fallita\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	// creo N consumatori
+	for(i = 0; i < N; i++){
+		if( (err = pthread_create(&cons[i], NULL, consumatore, (void*)i)) != 0 ){
+			fprintf(stderr, "pthread_create fallita\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	// creo M produttori
+	for(i = 0; i < M; i++){
+		if( (err = pthread_create(&prod[i], NULL, produttore, (void*)nmsg)) != 0 ){
+			fprintf(stderr, "pthread_create fallita\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	// join sul signal handler
+	if(pthread_join(tid, NULL) != 0){
+		fprintf(stderr, "pthread_join fallita\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	// join sui consumatori
+	for(i = 0; i < N; i++){
+		if( (err = pthread_join(cons[i], NULL)) != 0 ){
+			fprintf(stderr, "pthread_join fallita\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	// join sui produttori
+	for(i = 0; i < M; i++){
+		if( (err = pthread_join(prod[i], NULL)) != 0 ){
+			fprintf(stderr, "pthread_join fallita\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	free(prod);
+	free(cons);
+	
+	return 0;
+}
